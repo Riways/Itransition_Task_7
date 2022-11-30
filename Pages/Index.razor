@@ -1,0 +1,241 @@
+﻿@page "/"
+
+@implements IAsyncDisposable
+
+<PageTitle>Task_7</PageTitle>
+@if (Opponent == null || Client == null)
+{
+        <GreetingComponent Client="Client" Opponent="Opponent" OpponentSetter="@OpponentSetter" HubConnection="_hubConnection" IsOAvailable="IsOAvailable" IsXAvailable="IsXAvailable" SetGameState="@SetGameState" ClientSetter="@SetClient" GameService="GameService"/>
+}
+else
+{
+    if (Client.Roll == -1 || Opponent.Roll == -1)
+    {
+                <RollComponent SetIsClientTurn="SetIsClientTurn" Client="Client" HubConnection="_hubConnection" OpponentRollValue="Opponent.Roll"  RollValue="Client.Roll"/>
+    }
+    else
+    {
+        if (IsDraw)
+        {
+                    <div class="text-center">
+                        <MudText>DRAW!</MudText>
+                        <MudButton OnClick="@ResetGame">Play again</MudButton>
+                    </div>
+        }
+        if (Winner == null)
+        {
+                        <PlaygroundComponent Opponent="Opponent" IsClientTurn="IsClientTurn" GameService="GameService" Client="Client" SetGameState="@SetGameState" HubConnection="_hubConnection"  CurrentGameState="CurrentGameState"/>
+        }
+        else
+        {
+                        <div class="text-center">
+                @if (Winner.ConnectionId == Client.ConnectionId)
+                {
+                                    <MudText> CONGRATULATIONS, @Client.Name, YOU WIN!!!</MudText>
+                                    <MudButton OnClick="@ResetGame">Play again</MudButton>
+                }
+                else
+                {
+                                    <MudText>@Opponent.Name is a winner.</MudText>
+                                    <MudButton OnClick="@ResetGame">Play again</MudButton>
+                }
+                        </div>
+        }
+    }
+
+}
+@if (Opponent != null)
+{
+    <p>Opponent rolll : @Opponent.Roll</p>
+}
+@if (Client != null)
+{
+    <p>Client roll: @Client.Roll</p>
+}
+
+
+@code {
+
+    [Inject]
+    public IGameService? GameService { get; set; }
+    [Inject]
+    public NavigationManager? NavigationManager { get; set; }
+    private HubConnection? _hubConnection { get; set; }
+    public UserModel? Client { get; set; } = null;
+    public UserModel? Opponent { get; set; }
+    public UserModel? Winner { get; set; } = null;
+    public GameStateModel? CurrentGameState { get; set; }
+    public bool IsClientTurn { get; set; } = false;
+    public bool IsOAvailable { get; set; } = true;
+    public bool IsXAvailable { get; set; } = true;
+    public bool IsDraw { get; set; } = false;
+
+
+    protected override async Task? OnInitializedAsync()
+    {
+        Connect();
+    }
+
+    private async Task Connect()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/gamehub")).Build();
+
+        _hubConnection.On<UserModel, GameStateModel>("RecieveNewState", (user, newState) =>
+        {
+            IsClientTurn = !IsClientTurn;
+            CurrentGameState = newState;
+            StateHasChanged();
+        });
+
+        _hubConnection.On<UserModel>("RecieveWinner", (user) =>
+        {
+            Winner = user;
+            StateHasChanged();
+        });
+
+        _hubConnection.On<UserModel>("ReciveDrawResult", (user) =>
+        {
+            IsDraw = true;
+            StateHasChanged();
+        });
+
+        _hubConnection.On<UserModel>("StartNewGame", (user) =>
+       {
+           NewGameStartedEventHandler(user);
+           StateHasChanged();
+       });
+
+        _hubConnection.On<UserModel>("HandleConnectedUserEvent", (user) =>
+        {
+            if (user.Role == Role.X)
+                IsXAvailable = false;
+            else if (user.Role == Role.O)
+                IsOAvailable = false;
+            UserConnectedEventHandler(user);
+            StateHasChanged();
+        });
+
+        _hubConnection.On<UserModel, int>("RecieveOpponentRoll", (user, roll) =>
+        {
+            HandleRollEvent(user, roll);
+            StateHasChanged();
+        });
+
+        _hubConnection.On<UserModel>("HandleLeavedUserEvent", (user) =>
+        {
+            UserLeavedEventHandler(user);
+            ResetGame();
+            StateHasChanged();
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    public async void SetClient(UserModel client)
+    {
+        Client = client;
+    }
+
+    public async void SetIsClientTurn(bool res)
+    {
+        IsClientTurn = res;
+    }
+
+    public async void SetGameState(GameStateModel gameStateModel)
+    {
+        CurrentGameState = gameStateModel;
+    }
+
+    public async void SetOpponentRollValue(int value)
+    {
+        Opponent.Roll = value;
+    }
+
+    public async void OpponentSetter(UserModel opponent)
+    {
+        Opponent = opponent;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Client != null)
+        {
+            GameService.RemoveUserFromGame(Client);
+            await _hubConnection.SendAsync("UserLeaved", Client);
+        }
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    public void HandleRollEvent(UserModel user, int roll)
+    {
+        if (Client == null || Opponent == null)
+        {
+            return;
+        }
+        if (user.ConnectionId == Opponent.ConnectionId)
+        {
+            Opponent.Roll = roll;
+            if (roll < Client.Roll)
+                IsClientTurn = true;
+            else
+                IsClientTurn = false;
+        }
+        if (user.ConnectionId == Client.ConnectionId)
+        {
+            Client.Roll = roll;
+            if (roll > Opponent.Roll)
+                IsClientTurn = true;
+            else
+                IsClientTurn = false;
+        }
+
+    }
+
+    public void UserLeavedEventHandler(UserModel leavedUser)
+    {
+        if (Opponent != null && leavedUser.ConnectionId == Opponent.ConnectionId)
+            Opponent = null;
+        if (Client != null)
+            Client.Roll = -1;
+        CurrentGameState = new GameStateModel();
+    }
+
+    public void UserConnectedEventHandler(UserModel connectedUser)
+    {
+        if (Client == null || Opponent != null || connectedUser.ConnectionId == Client.ConnectionId)
+            return;
+        if (connectedUser.Role != Role.Observer)
+        {
+            Opponent = connectedUser;
+        }
+    }
+    public void GameStateChangedEventHandler(UserModel user, GameStateModel gameState)
+    {
+        if (Client != null && user.Room == Client.Room)
+        {
+            CurrentGameState = gameState;
+        }
+    }
+
+    public void NewGameStartedEventHandler(UserModel user)
+    {
+        if (Client != null && user.Room == Client.Room)
+        {
+            Winner = null;
+            CurrentGameState = new GameStateModel();
+            IsDraw = false;
+        }
+    }
+
+    public async void ResetGame()
+    {
+        await _hubConnection.SendAsync("NewGameStarted", Client);
+        if(Client!= null)
+            GameService.ResetRoomState(Client.Room);
+    }
+}
+

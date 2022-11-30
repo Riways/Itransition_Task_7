@@ -1,0 +1,92 @@
+﻿<MudGrid Class="align-content-center mt-16" Justify="Justify.Center" id="greetingForm">
+    <MudItem   xs="12" md="6" lg="4">
+        <MudPaper Class="" Elevation="3">
+            <MudForm Class="p-5 d-flex align-content-space-between"   @bind-IsValid="@_isValidInput">
+                <MudGrid class="text-center" Justify="Justify.Center">
+                    @if (_chosenUsername == null && Client == null)
+                    {
+                        <MudText Class="mr-auto mx-2">Type your username:</MudText>
+                            <MudItem xs="12">
+                                <MudTextField  @bind-Value="_currentUsernameInput" T="string"  TextChanged="@ValidateUsernameInput"   Label="Username" Immediate="true" Required="true" RequiredError="User name is required!"/>
+                            </MudItem>
+                            <MudButton Class="mx-3" Variant="Variant.Filled" Color="Color.Primary"  Disabled="@(!_isValidInput)"  @onclick="LogIn">Log in</MudButton>
+                    }
+                    else
+                    {
+                        @if ( Client == null)
+                        {
+                        <MudItem xs="10" >
+                        <MudText Class=" mx-2">Choose your weapon:</MudText>
+                        </MudItem>
+                        <MudItem xs="4">
+                            <MudButton Class="mx-3" Size="Size.Large" Variant="Variant.Filled" Color="Color.Error"  Disabled="@(!IsOAvailable)"  @onclick="@(() =>{ ChooseRole(Role.O);})">O</MudButton>
+                        </MudItem>
+                        <MudItem xs="4">
+                            <MudButton Class="mx-3" Size="Size.Large" Variant="Variant.Filled" Color="Color.Primary"  Disabled="@(!IsXAvailable)"  @onclick="@(() =>{ ChooseRole(Role.X);})">X</MudButton>
+                        </MudItem>
+                        }else
+                        {
+                            <MudText Class="d-flex" >Please wait for second player</MudText>
+                            <div class="m-auto spinner-border" role="status">
+                            </div>
+                        }
+                    }
+                </MudGrid>
+            </MudForm>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter]
+    public HubConnection? HubConnection { get; set; }
+    [Parameter]
+    public IGameService GameService { get; set; }
+    [Parameter]
+    public UserModel Opponent { get; set; }
+    [Parameter]
+    public UserModel Client { get; set; }
+    [Parameter]
+    public EventCallback<UserModel> ClientSetter { get; set; }
+    [Parameter]
+    public EventCallback<UserModel> OpponentSetter { get; set; }
+    [Parameter]
+    public EventCallback<GameStateModel> SetGameState { get; set; }
+    [Parameter]
+    public bool IsOAvailable { get; set; } = false;
+    [Parameter]
+    public bool IsXAvailable { get; set; } = false;
+    private int _roomId { get; set; } = 0;
+    private string _currentUsernameInput { get; set; } = "";
+    private string? _chosenUsername { get; set; }
+    private bool _isValidInput { get; set; } = false;
+
+    private void ValidateUsernameInput()
+    {
+        _isValidInput = _currentUsernameInput.Length > 0;
+    }
+
+    private async void LogIn()
+    {
+        _chosenUsername = _currentUsernameInput;
+        var availableRoles = GameService.GetAvaiableRolesInRoom(_roomId);
+        if (!availableRoles.Contains(Role.O))
+            IsOAvailable = false;
+        if (!availableRoles.Contains(Role.X))
+            IsXAvailable = false;
+    }
+
+    private async void ChooseRole(Role role)
+    {
+        if (role != Role.Observer)
+            GameService.ChangeAvaiableRolesInRoom(_roomId, role, false);
+        Client = new UserModel(HubConnection.ConnectionId, _chosenUsername, _roomId, role);
+        GameService.AddUserToTheRoom(Client);
+        await ClientSetter.InvokeAsync(Client);
+        await HubConnection.SendAsync("UserConnected", Client);
+        Opponent = GameService.GetOpponent(Client);
+        await OpponentSetter.InvokeAsync(Opponent);
+        await SetGameState.InvokeAsync(GameService.GetGameStateByRoom(_roomId));
+    }
+
+}

@@ -1,0 +1,50 @@
+﻿<MudGrid Class="align-content-center mt-16" Justify="Justify.Center" id="greetingForm">
+    <MudItem   xs="12" md="6" lg="4">
+        <MudPaper class=" text-center pa-4" Elevation="3" Height="40vh" Width="60vh">
+            <MudText Typo="Typo.h5">Roll the dice:</MudText>
+            @if(RollValue == -1)
+            {
+                <MudText Typo="Typo.h4">Your roll: --</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Roll">Roll</MudButton>
+            }
+            else
+            {
+                <MudText  Typo="Typo.h4">Your roll: @RollValue</MudText>
+            }
+            @if (OpponentRollValue == -1)
+            {
+                <MudText Typo="Typo.h4">Second player roll:  --</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h4">Second player roll: @OpponentRollValue</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter]
+    public int RollValue { get; set; }
+    [Parameter]
+    public int OpponentRollValue { get; set; }
+    [Parameter]
+    public UserModel Client { get; set; }
+    [Parameter]
+    public HubConnection HubConnection { get; set; }
+    [Parameter]
+    public EventCallback<bool> SetIsClientTurn { get; set; }
+
+
+    private async void Roll()
+    {
+        var roll = new Random().Next(10000);
+        await HubConnection.SendAsync("UserRolled", Client, roll);
+        StateHasChanged();
+        if (OpponentRollValue >=0 && OpponentRollValue < roll)
+        {
+            await SetIsClientTurn.InvokeAsync(true);
+        }
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,110 @@
+﻿<MudGrid Class="align-content-center mt-16"  Justify="Justify.Center" id="greetingForm">
+    <MudItem   xs="12" md="6" lg="4">
+        <MudPaper  Elevation="0" Height="60vh" Width="60vh">
+           <MudGrid Spacing="1" Justify="Justify.Center">
+                @if (IsClientTurn)
+                {
+                    <MudText Typo="Typo.h3" Color="PickColor()">Current turn: Yours</MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.h2" Color="PickColor()">Current turn: @Opponent.Role</MudText>
+                }
+                @for (int i = 0; i <= 2; i++)
+                {
+                    var y = i;
+                        <MudItem xs="12">
+                            <MudGrid >
+                            @for (int z = 0; z <= 2; z++)
+                            {
+                                var x = z;
+                                    <MudItem xs="4">
+                                    @if (CurrentGameState.GameState[y][x] == FieldState.O)
+                                    {
+                                                <MudPaper Elevation="1" Height=" 19vh" Width="19vh">
+                                                    <MudButton Variant="Variant.Filled" Color="Color.Error"    Style="width:100%; height:100%">O</MudButton>
+                                                </MudPaper>
+                                    }
+                                    else if (CurrentGameState.GameState[y][x] == FieldState.X)
+                                    {
+                                                <MudPaper Elevation="1" Height=" 19vh" Width="19vh" >
+                                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="width:100%; height:100%">X</MudButton>
+                                                    </MudPaper>
+                                    }
+                                    else
+                                    {
+                                        if (IsClientTurn)
+                                        {
+                                            <MudPaper Elevation="1"  Height=" 19vh" Width="19vh">
+                                                <MudButton Color="Color.Secondary" OnClick="@(()=>{ChangeCurrentGameState(y,x);})" Style="width:100%; height:100%"></MudButton>
+                                            </MudPaper>
+                                        }
+                                        else
+                                        {
+                                            <MudPaper Elevation="1"  Height=" 19vh" Width="19vh">
+                                                <MudButton Color="Color.Secondary" Style="width:100%; height:100%"></MudButton>
+                                            </MudPaper>
+                                        }
+
+                                    }
+                                    </MudItem>
+                            }
+                            </MudGrid>
+                        </MudItem>
+                }
+           </MudGrid>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter]
+    public GameStateModel CurrentGameState { get; set; }
+    [Parameter]
+    public IGameService GameService { get; set; }
+    [Parameter]
+    public UserModel Client { get; set; }
+    [Parameter]
+    public UserModel Opponent { get; set; }
+    [Parameter]
+    public HubConnection? HubConnection { get; set; }
+    [Parameter]
+    public EventCallback<GameStateModel> SetGameState { get; set; }
+    [Parameter]
+    public bool IsClientTurn { get; set; }
+
+    public async void ChangeCurrentGameState(int y, int x)
+    {
+        CurrentGameState.GameState[y][x] = GameService.ConvertRoleToFieldState(Client.Role);
+        GameService.ChangeGameStateInRoom(Client.Room, CurrentGameState);
+        await SetGameState.InvokeAsync(CurrentGameState);
+        await HubConnection.SendAsync("UserChangedGameState", Client, CurrentGameState);
+        if (GameService.IsWin(CurrentGameState))
+        {
+            await HubConnection.SendAsync("UserWinningProcedure", Client);
+            return;
+        }
+        if (GameService.IsDraw(CurrentGameState))
+        {
+            await HubConnection.SendAsync("DrawGameProcedure", Client);
+        }
+    }
+
+    public Color PickColor()
+    {
+        if (IsClientTurn)
+            return RoleToColor(Client.Role);
+        else
+            return RoleToColor(Opponent.Role);
+    }
+
+    private Color RoleToColor(Role role)
+    {
+        if (role == Role.O)
+            return Color.Error;
+        else
+            return Color.Primary;
+
+    }
+}
+}
