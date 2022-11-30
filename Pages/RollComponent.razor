@@ -1,24 +1,30 @@
 ﻿<MudGrid Class="align-content-center mt-16" Justify="Justify.Center" id="greetingForm">
     <MudItem   xs="12" md="6" lg="4">
-        <MudPaper class=" text-center pa-4 justify-content-center" Elevation="3" Height="40vh" Width="60vh">
-            <MudText Typo="Typo.h5">Roll the dice:</MudText>
-            @if(RollValue == -1)
-            {
-                <MudText Typo="Typo.h4">Your roll: --</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Roll">Roll</MudButton>
-            }
-            else
-            {
-                <MudText  Typo="Typo.h4">Your roll: @RollValue</MudText>
-            }
-            @if (OpponentRollValue == -1)
-            {
-                <MudText Typo="Typo.h4">Second player roll:  --</MudText>
-            }
-            else
-            {
-                <MudText Typo="Typo.h4">Second player roll: @OpponentRollValue</MudText>
-            }
+        <MudPaper class="  pa-10 justify-content-center" Elevation="3" Height="40vh" Width="60vh">
+            <MudText Align="Align.Center" Typo="Typo.h4">Roll the dice:</MudText>
+            <MudGrid Justify="Justify.FlexStart">
+                <MudItem class="mt-8" xs="12">
+                    @if (OpponentRollValue == -1)
+                    {
+                        <MudText Typo="Typo.h5">Second player roll:  --</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h5">Second player roll: @OpponentRollValue</MudText>
+                    }
+                </MudItem>
+                <MudItem class="text-center" xs="12">
+                    @if (RollValue == -1)
+                    {
+                            <MudText Align="Align.Start" Typo="Typo.h5">Your roll: --</MudText>
+                            <MudButton  Variant="Variant.Filled" Color="Color.Primary" OnClick="@Roll">Roll</MudButton>
+                    }
+                    else
+                    {
+                        <MudText Align="Align.Start" Typo="Typo.h5">Your roll: @RollValue</MudText>
+                    }
+                </MudItem>
+            </MudGrid>
         </MudPaper>
     </MudItem>
 </MudGrid>
