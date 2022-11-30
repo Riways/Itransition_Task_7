@@ -5,54 +5,43 @@
 <PageTitle>Task_7</PageTitle>
 @if (Opponent == null || Client == null)
 {
-        <GreetingComponent Client="Client" Opponent="Opponent" OpponentSetter="@OpponentSetter" HubConnection="_hubConnection" IsOAvailable="IsOAvailable" IsXAvailable="IsXAvailable" SetGameState="@SetGameState" ClientSetter="@SetClient" GameService="GameService"/>
+    <GreetingComponent Client="Client" Opponent="Opponent" OpponentSetter="@OpponentSetter" HubConnection="_hubConnection" IsOAvailable="IsOAvailable" IsXAvailable="IsXAvailable" SetGameState="@SetGameState" ClientSetter="@SetClient" GameService="GameService"/>
 }
 else
 {
     if (Client.Roll == -1 || Opponent.Roll == -1)
     {
-                <RollComponent SetIsClientTurn="SetIsClientTurn" Client="Client" HubConnection="_hubConnection" OpponentRollValue="Opponent.Roll"  RollValue="Client.Roll"/>
+        <RollComponent SetIsClientTurn="SetIsClientTurn" Client="Client" HubConnection="_hubConnection" OpponentRollValue="Opponent.Roll"  RollValue="Client.Roll"/>
     }
     else
     {
         if (IsDraw)
         {
-                    <div class="text-center">
-                        <MudText>DRAW!</MudText>
-                        <MudButton OnClick="@ResetGame">Play again</MudButton>
-                    </div>
+            <div class="text-center">
+                <MudText>DRAW!</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Tertiary" OnClick="@ResetGame">Play again</MudButton>
+            </div>
         }
         if (Winner == null)
         {
-                        <PlaygroundComponent Opponent="Opponent" IsClientTurn="IsClientTurn" GameService="GameService" Client="Client" SetGameState="@SetGameState" HubConnection="_hubConnection"  CurrentGameState="CurrentGameState"/>
+            <PlaygroundComponent Opponent="Opponent" IsClientTurn="IsClientTurn" GameService="GameService" Client="Client" SetGameState="@SetGameState" HubConnection="_hubConnection"  CurrentGameState="CurrentGameState"/>
         }
         else
         {
-                        <div class="text-center">
+            <div class="text-center">
                 @if (Winner.ConnectionId == Client.ConnectionId)
                 {
-                                    <MudText> CONGRATULATIONS, @Client.Name, YOU WIN!!!</MudText>
-                                    <MudButton OnClick="@ResetGame">Play again</MudButton>
+                    <MudText > CONGRATULATIONS, @Client.Name, YOU WIN!!!</MudText>
                 }
                 else
                 {
-                                    <MudText>@Opponent.Name is a winner.</MudText>
-                                    <MudButton OnClick="@ResetGame">Play again</MudButton>
+                    <MudText>@Opponent.Name is a winner.</MudText>
                 }
-                        </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Tertiary" OnClick="@ResetGame">Play again</MudButton>
+            </div>
         }
     }
-
 }
-@if (Opponent != null)
-{
-    <p>Opponent rolll : @Opponent.Roll</p>
-}
-@if (Client != null)
-{
-    <p>Client roll: @Client.Roll</p>
-}
-
 
 @code {
 
@@ -234,7 +223,7 @@ else
     public async void ResetGame()
     {
         await _hubConnection.SendAsync("NewGameStarted", Client);
-        if(Client!= null)
+        if (Client != null)
             GameService.ResetRoomState(Client.Room);
     }
 }
